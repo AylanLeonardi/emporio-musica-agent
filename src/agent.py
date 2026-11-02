@@ -2,7 +2,7 @@ import os
 import google.generativeai as genai
 from src.tools import buscar_produtos, consultar_pedido, consultar_politicas
 
-# Configura a chave da API do Gemini (buscando da variável de ambiente)
+# Configura a chave da API do Gemini obtida da variável de ambiente
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 SYSTEM_INSTRUCTION = """
@@ -23,32 +23,31 @@ class EmporioAgente:
             system_instruction=SYSTEM_INSTRUCTION
         )
         self.chat = self.model.start_chat(history=[])
-        # Carregando o texto das políticas para injetar contexto relevante se necessário
+        # Carrega as políticas internas em texto para contexto
         self.politicas_texto = consultar_politicas()
 
     def responder(self, mensagem_usuario: str) -> str:
-        """Processa a mensagem do usuário, injetando dados contextuais se houver menção a busca ou políticas."""
-        
+        """Processa a mensagem do cliente injetando dados formatados do catálogo e das políticas."""
         contexto_extra = ""
-        
-        # Lógica simples e inteligente para injetar dados se o cliente perguntar por algo específico
         msg_lower = mensagem_usuario.lower()
         
-        if any(termo in msg_lower for termo in ["violao", "guitarra", "baixo", "bateria", "teclado", "preco", "custa", "disponivel", "disponibilidade", "opcao"]):
-            # Extrai uma palavra-chave simples ou busca geral
+        # Injeta os produtos formatados com nome, preço real (price_brl) e quantidade em estoque
+        if any(termo in msg_lower for termo in ["violao", "violão", "guitarra", "baixo", "bateria", "teclado", "preco", "preço", "custa", "quanto", "disponivel", "disponível", "opcao", "opção", "catalogo", "catálogo"]):
             produtos = buscar_produtos()
-            contexto_extra += f"\n[Dados de Produtos do Sistema:\n{str(produtos[:15])}\n]\n" # Limitando para não estourar tokens
+            if isinstance(produtos, list):
+                lista_prod = "\n".join([
+                    f"- {p.get('name', 'Item')}: R$ {p.get('price_brl', 'N/A')} (Estoque: {p.get('stock_quantity', 'N/A')})" 
+                    for p in produtos
+                ])
+                contexto_extra += f"\n[Catálogo de Produtos Disponíveis:\n{lista_prod}\n]\n"
 
         if any(termo in msg_lower for termo in ["pedido", "status", "entrega", "rastreio"]):
             pass
 
-        if any(termo in msg_lower for termo in ["troca", "devolucao", "garantia", "frete", "pagamento", "horario", "endereco", "parcela"]):
+        if any(termo in msg_lower for termo in ["troca", "devolucao", "devolução", "garantia", "frete", "pagamento", "horario", "horário", "endereco", "endereço", "parcela"]):
             contexto_extra += f"\n[Trecho das Políticas da Loja:\n{self.politicas_texto[:2500]}\n]\n"
 
-        prompt_final = f"""
-        {contexto_extra}
-        Mensagem do Cliente: {mensagem_usuario}
-        """
+        prompt_final = f"{contexto_extra}\nMensagem do Cliente: {mensagem_usuario}"
 
         try:
             response = self.chat.send_message(prompt_final)
