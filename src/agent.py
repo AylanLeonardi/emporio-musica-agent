@@ -17,9 +17,9 @@ Diretrizes obrigatórias:
 
 class EmporioAgente:
     def __init__(self):
-        # Modelo gemini-pro
+        # Modelo gemini-3.5-flash
         self.model = genai.GenerativeModel(
-            model_name="gemini-pro",
+            model_name="models/gemini-3.5-flash",
             system_instruction=SYSTEM_INSTRUCTION
         )
         self.chat = self.model.start_chat(history=[])
