@@ -6,17 +6,28 @@ from pypdf import PdfReader
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../data')
 
 def buscar_produtos(termo_busca: str = None):
-    """Função para buscar produtos no catálogo por nome, marca ou categoria"""
+    """Função para buscar produtos e cruza automaticamente com promocoes ativas"""
     try:
         prod_file = [f for f in os.listdir(DATA_DIR) if 'products.csv' in f][0]
-        df = pd.read_csv(os.path.join(DATA_DIR, prod_file))
+        df_prod = pd.read_csv(os.path.join(DATA_DIR, prod_file))
         
+        # Tenta carregar promocoes ativas
+        try:
+            promo_file = [f for f in os.listdir(DATA_DIR) if 'promotions.csv' in f][0]
+            df_promo = pd.read_csv(os.path.join(DATA_DIR, promo_file))
+            if 'is_active' in df_promo.columns:
+                df_promo = df_promo[df_promo['is_active'] == 1]
+            df_prod = df_prod.merge(df_promo[['product_id', 'discount_percent', 'description']], on='product_id', how='left')
+        except Exception:
+            pass
+
         if termo_busca:
-            res = df[df['name'].str.contains(termo_busca, case=False, na=False)]
+            res = df_prod[df_prod['name'].str.contains(termo_busca, case=False, na=False)]
             if res.empty:
                 return "Nenhum instrumento encontrado com esse termo."
             return res.to_dict(orient='records')
-        return df.to_dict(orient='records')
+            
+        return df_prod.to_dict(orient='records')
     except Exception as e:
         return {"erro": str(e)}
 

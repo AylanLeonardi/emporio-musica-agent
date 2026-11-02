@@ -29,15 +29,18 @@ class EmporioAgente:
         contexto_extra = ""
         msg_lower = mensagem_usuario.lower()
         
-        # Injeta produtos se houver menção a instrumentos ou preços
-        if any(termo in msg_lower for termo in ["violao", "violão", "guitarra", "baixo", "bateria", "teclado", "preco", "preço", "custa", "quanto", "disponivel", "disponível", "opcao", "opção", "catalogo", "catálogo"]):
+        # Injeta produtos se houver menção a instrumentos,preços ou ofertas
+        if any(termo in msg_lower for termo in ["violao", "violão", "guitarra", "baixo", "bateria", "teclado", "ukulele", "kalani", "preco", "preço", "custa", "quanto", "disponivel", "disponível", "opcao", "opção", "catalogo", "catálogo", "promocao", "promoção", "desconto", "oferta"]):
             produtos = buscar_produtos()
             if isinstance(produtos, list):
-                lista_prod = "\n".join([
-                    f"- ID {p.get('product_id')}: {p.get('name', 'Item')} | R$ {p.get('price_brl', 'N/A')} (Estoque: {p.get('stock_quantity', 'N/A')})" 
-                    for p in produtos
-                ])
-                contexto_extra += f"\n[Catálogo de Produtos Disponíveis:\n{lista_prod}\n]\n"
+                linhas = []
+                for p in produtos:
+                    desc = p.get('discount_percent')
+                    info_promo = f" | PROMOÇÃO: {desc}% OFF ({p.get('description_y', 'Oferta')})" if pd.notna(desc) and desc > 0 else ""
+                    linhas.append(f"- ID {p.get('product_id')}: {p.get('name')} | Preço Normal: R$ {p.get('price_brl')}{info_promo} (Estoque: {p.get('stock_quantity')})")
+                
+                lista_prod = "\n".join(linhas)
+                contexto_extra += f"\n[Catálogo de Produtos e Ofertas:\n{lista_prod}\n]\n"
 
         # Injeta promoções se houver menção a desconto ou oferta
         if any(termo in msg_lower for termo in ["promocao", "promoção", "desconto", "oferta", "liquidacao", "liquidação", "black friday"]):
