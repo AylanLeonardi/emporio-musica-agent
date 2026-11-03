@@ -4,7 +4,6 @@ Todas as funções públicas retornam dicts/listas simples (JSON-serializáveis)
 o SDK do Gemini as expõe ao modelo como ferramentas chamáveis.
 """
 import glob
-import json
 import os
 import re
 import unicodedata
@@ -237,4 +236,4 @@ def carregar_politicas() -> str:
         return f"(Erro ao ler o manual de políticas: {e})"
 
 
-FERRAMENTAS = [buscar_produtos, listar_promocoes, consultar_pedidos]
+FERRAMENTAS = [buscar_produtos, listar_promocoes, consultar_pedidos, data_hora_atual]

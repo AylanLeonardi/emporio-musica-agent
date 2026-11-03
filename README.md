@@ -82,6 +82,8 @@ O manual tem cerca de 13 mil caracteres, o que cabe com folga no contexto. Coloc
 - **Persona** definida a partir das diretrizes do próprio manual (informal, mas profissional, sem tom robótico, respostas curtas estilo WhatsApp).
 - **Regras de ouro:** só informar preço, estoque e status vindos das ferramentas; regras só do manual; se não souber, dizer que não sabe e indicar o contato da loja.
 - **Escopo:** recusa educada de acessórios e de assuntos fora do contexto da loja, e proteção contra pedidos para revelar as instruções.
+- **Limites de ação:** o agente não pode abrir devoluções, trocas ou reclamações; ele explica a regra e encaminha o cliente à equipe pelo WhatsApp, em vez de prometer algo que não consegue fazer.
+- **Data atual no prompt:** a data/hora é injetada no system prompt no início da sessão e também está disponível pela ferramenta `data_hora_atual`, para que o modelo não chute a data ao calcular prazos.
 
 ### Privacidade
 Pedidos só são consultados com o **e-mail cadastrado**, validado **dentro da ferramenta** (e não só no prompt). Nunca por nome. A mensagem de "não encontrado" não revela se um cliente existe. A chave de API fica no `.env`, fora do versionamento.
@@ -109,6 +111,8 @@ O histórico vive na sessão (objeto de chat do SDK), o suficiente para conversa
 
 ## ⚠️ Limitações conhecidas
 
+- **Data fixa na sessão:** a data injetada no prompt é a do início da conversa; em sessões muito longas (que cruzem a meia-noite) ela pode ficar desatualizada, embora a ferramenta `data_hora_atual` continue correta.
+- **Data de recebimento:** a base só traz a *previsão* de entrega, não a data real de recebimento, então os prazos de arrependimento usam a previsão como referência.
 - **Cálculo de prazos feito pelo modelo:** a comparação de datas (ex.: "ainda estou dentro dos 7 dias?") depende do LLM. Seria mais confiável uma ferramenta que calcule em código.
 - **Feriados** não são considerados no horário de funcionamento.
 - **Sem persistência** de conversas entre execuções e sem autenticação real além do e-mail.
@@ -127,11 +131,12 @@ O histórico vive na sessão (objeto de chat do SDK), o suficiente para conversa
 
 ## 🤖 Uso de assistentes de código
 
-[PREENCHER com o seu fluxo real, por exemplo:]
-Utilizei o **Claude (Anthropic)** como assistente durante o desenvolvimento: [descreva]. Por exemplo, a primeira versão do agente usava seleção de contexto por palavras-chave e apresentava respostas inconsistentes; com o auxílio do Claude diagnostiquei as causas (palavras-chave frágeis, política truncada, SDK descontinuado, falta de identificação clara do cliente) e migrei para function calling com o SDK `google-genai`. Revisei o código gerado, removi trechos não usados e testei as conversas manualmente. [Ajuste o texto conforme o que você de fato fez e mencione outras ferramentas, se usou.]
+Usei o **Claude (Anthropic)**, em conversas de chat, como assistente de revisão e refatoração. A primeira versão do projeto escolhia o contexto por palavras-chave na mensagem e apresentava respostas inconsistentes. Com o Claude, diagnostiquei as causas (palavras-chave frágeis, política truncada em 2500 caracteres, `import` faltando, SDK `google-generativeai` descontinuado, ausência de regra clara de identificação do cliente) e migrei para function calling com o SDK `google-genai`, mantendo o manual de políticas completo no prompt.
+
+Meu fluxo foi: descrever o problema colando o código e a saída do terminal, receber uma proposta, **ler e adaptar o código** (removi trechos sem uso, como uma função auxiliar e um import, e ajustei nomes), e **testar manualmente** cada mudança no CLI com dados reais. Os testes revelaram problemas que levaram a novos ajustes no prompt, como o agente oferecer ações que não pode executar e supor uma data errada ao calcular o prazo de devolução. Também usei o assistente para estudar o código e a lógica aplicada, e para redigir mensagens de commit e partes deste README, que revisei e ajustei.
 
 ---
 
 ## 💬 Exemplos de interação
 
-Veja a pasta [`exemplos/`](exemplos/) com conversas cobrindo: [PREENCHER: consulta de preço, filtro por faixa de preço, pedido por e-mail, política de devolução, pedido fora de escopo].
+A pasta [`exemplos/`](exemplos/) traz 5 conversas reais do agente: filtro de catálogo por faixa de preço, preço e promoções (com regra do PIX), consulta de pedido com identificação por e-mail, pedido fora de escopo com informações da loja, e devolução por arrependimento com cálculo de prazo.
