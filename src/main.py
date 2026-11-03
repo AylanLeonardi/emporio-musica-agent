@@ -1,49 +1,40 @@
 import os
 import sys
+
 from dotenv import load_dotenv
 
-# Carrega as variáveis de ambiente do arquivo .env se existir
 load_dotenv()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Garante que o diretório raiz esteja no path do Python
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.agent import EmporioAgente  # noqa: E402
 
-from src.agent import EmporioAgente
 
 def main():
     print("=" * 60)
     print("    🎸 EMPÓRIO DA MÚSICA - ATENDIMENTO VIRTUAL (CLI) 🥁    ")
     print("=" * 60)
-    print("Digite 'sair' ou 'exit' a qualquer momento para encerrar.\n")
-
-    # Verifica se a chave da API está configurada
-    if not os.getenv("GEMINI_API_KEY"):
-        print("⚠️ ALERTA: A variável de ambiente GEMINI_API_KEY não foi encontrada!")
-        print("Defina a variável no seu sistema ou num arquivo .env na raiz do projeto.\n")
+    print("Digite 'sair' para encerrar.\n")
 
     try:
-        agnt = EmporioAgente()
-        print("Atendente inicializado com sucesso. Como posso ajudar você hoje?\n")
-    except Exception as e:
+        agente = EmporioAgente()
+    except Exception as e:  # noqa: BLE001
         print(f"Erro ao inicializar o agente: {e}")
         return
 
+    print("Atendente: Fala! Aqui é o assistente da Empório da Música. Como posso ajudar? 🎵\n")
     while True:
         try:
-            entrada_usuario = input("Cliente: ")
-            if entrada_usuario.strip().lower() in ["sair", "exit"]:
-                print("\nAtendente: Valeu por conversar com a Empório da Música! Qualquer coisa estamos por aqui. Boas notas! 🎵")
-                break
-            
-            if not entrada_usuario.strip():
-                continue
-
-            resposta = agnt.responder(entrada_usuario)
-            print(f"\nAtendente: {resposta}\n" + "-" * 50)
-            
-        except KeyboardInterrupt:
+            entrada = input("Cliente: ").strip()
+        except (KeyboardInterrupt, EOFError):
             print("\n\nAtendimento encerrado.")
             break
+        if entrada.lower() in ("sair", "exit"):
+            print("\nAtendente: Valeu por passar aqui! Boas notas! 🎵")
+            break
+        if not entrada:
+            continue
+        print(f"\nAtendente: {agente.responder(entrada)}\n" + "-" * 50)
+
 
 if __name__ == "__main__":
     main()
