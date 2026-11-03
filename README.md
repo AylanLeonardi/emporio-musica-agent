@@ -1,141 +1,137 @@
-# 🎸 Empório da Música - Assistente Virtual CLI (IA)
+# 🎸 Empório da Música - Assistente Virtual (CLI)
 
-
-
-Assistente virtual inteligente desenvolvido em Python utilizando a API do Google Gemini (`google-generativeai`), projetado para operar como um atendente virtual especializado da **Empório da Música** (Campo Grande/MS, fundada em 2008).
-
-
+Agente de atendimento em Python para a **Empório da Música** (loja fictícia de instrumentos musicais em Campo Grande/MS), construído com a API do Google Gemini e **function calling**. Responde dúvidas sobre produtos, preços, promoções, pedidos e políticas da loja, mantendo a persona informal e acolhedora da marca.
 
 ---
 
+## 🚀 Como executar
 
+Pré-requisitos: Python 3.10+ e uma chave de API do Google Gemini (https://aistudio.google.com/apikey).
 
-## 🚀 Tecnologias Utilizadas
+```bash
+git clone https://github.com/AylanLeonardi/emporio-musica-agent
+cd emporio-musica-agent
 
-* **Python 3.10+**
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
 
-* **Google GenAI SDK** (`google-generativeai`) para processamento de linguagem natural e chat contextual.
+pip install -r requirements.txt
+```
 
-* **Pandas** para manipulação e consulta estruturada de bases de dados (CSV).
+Crie um arquivo `.env` na raiz do projeto:
 
-* **PyPDF** para extração de texto do manual de políticas da loja.
+```
+GEMINI_API_KEY=sua_chave_aqui
+# opcional: troca o modelo (padrão: gemini-3.5-flash)
+# GEMINI_MODEL=gemini-2.5-flash
+```
 
-* **Dotenv** para gerenciamento seguro de variáveis de ambiente.
+Execute:
 
+```bash
+python src/main.py
+```
 
+Digite `sair` para encerrar.
 
 ---
 
+## 📁 Estrutura do projeto
 
-
-## 📁 Estrutura do Projeto
-
-
-
+```
 emporio_musica_agent/
-
-│
-
-├── data/                         # Bases de dados (CSV e PDF de políticas)
-
-│   ├── products.csv
-
-│   ├── promotions.csv
-
-│   ├── customers.csv
-
-│   ├── orders.csv
-
-│   ├── order_items.csv
-
-│   └── políticas_da_loja.pdf
-
-│
-
-├── examples/                     # Cenários de testes e interações simuladas
-
+├── data/                  # CSVs da operação e PDF do manual de políticas
+├── exemplos/              # Conversas de exemplo com o agente
 │   └── interacoes.md
-
-│
-
-├── src/                          # Código fonte principal
-
-│   ├── agent.py                  # Lógica do LLM, System Instruction e injeção de contexto
-
-│   ├── tools.py                  # Funções de leitura de CSV/PDF e cruzamento de dados
-
-│   └── main.py                   # Interface de linha de comando (CLI) interativa
-
-│
-
-├── .env                          # Chave de API (excluída do versionamento)
-
-├── .gitignore                    # Arquivos ignorados pelo Git
-
-├── requirements.txt              # Dependências do projeto
-
-└── README.md                     # Documentação oficial do projeto
-
-
+├── src/
+│   ├── agent.py           # Persona, system prompt, chat com function calling
+│   ├── tools.py           # Ferramentas (catálogo, promoções, pedidos, data/hora) e leitura do PDF
+│   └── main.py            # Interface CLI
+├── requirements.txt
+└── README.md
+```
 
 ---
 
+## 🧠 Decisões técnicas e justificativas
 
+### Abordagem: function calling (+ políticas no prompt)
+O modelo decide sozinho **quando** consultar dados, chamando ferramentas Python. Escolhi function calling em vez de RAG ou agente de SQL porque:
 
-## 🛠️ Como Executar o Projeto Localmente
+- **Dados estruturados e pequenos** (65 produtos, 50 clientes, 20 pedidos): filtros em pandas são mais precisos que busca vetorial, e dão resultado exato para perguntas como "violões até R$ 1000".
+- **Controle sobre o que o modelo vê:** cada ferramenta devolve só os campos necessários, com preços finais já calculados em código (promoção, PIX, parcelamento), em vez de deixar o LLM fazer contas.
+- **Mais simples e auditável que SQL gerado por LLM**, que traria risco de consultas erradas ou acesso indevido a dados de outros clientes.
 
+| Ferramenta | Uso |
+|---|---|
+| `buscar_produtos` | Catálogo com filtros por termo, categoria e faixa de preço; devolve estoque, promoção ativa, preço final, preço no PIX e parcelamento máximo |
+| `listar_promocoes` | Promoções ativas no momento |
+| `consultar_pedidos` | Status, itens e rastreio de pedidos, identificando o cliente pelo e-mail |
+| `data_hora_atual` | Data/hora em Campo Grande e se a loja está aberta; usada para horário e prazos de troca/devolução |
 
+### Políticas inteiras no system prompt
+O manual tem cerca de 13 mil caracteres, o que cabe com folga no contexto. Colocá-lo completo no prompt elimina o risco de uma etapa de busca trazer o trecho errado (ou truncar seções, como acontecia na primeira versão) e deixa as respostas consistentes. O texto é lido do PDF uma vez e guardado em cache.
 
-1. Clone o repositório e acesse a pasta:
+### Modelo e provedor
+**Gemini (`gemini-3.5-flash`) via API do Google**, pelo SDK oficial `google-genai`. Motivos: suporte nativo a function calling, camada gratuita para prototipagem e bom desempenho em português. O modelo é configurável por `GEMINI_MODEL`. A temperatura é 0.3 para respostas mais estáveis.
 
-   git clone https://github.com/AylanLeonardi/emporio-musica-agent
+### Estratégia de prompt
+- **Persona** definida a partir das diretrizes do próprio manual (informal, mas profissional, sem tom robótico, respostas curtas estilo WhatsApp).
+- **Regras de ouro:** só informar preço, estoque e status vindos das ferramentas; regras só do manual; se não souber, dizer que não sabe e indicar o contato da loja.
+- **Escopo:** recusa educada de acessórios e de assuntos fora do contexto da loja, e proteção contra pedidos para revelar as instruções.
 
-   cd emporio-musica-agent
+### Privacidade
+Pedidos só são consultados com o **e-mail cadastrado**, validado **dentro da ferramenta** (e não só no prompt). Nunca por nome. A mensagem de "não encontrado" não revela se um cliente existe. A chave de API fica no `.env`, fora do versionamento.
 
+### Tratamento de dados
+- Busca sem acentos e sem diferenciar maiúsculas ("violao" encontra "Violão").
+- Cruzamento de produtos com categorias e promoções ativas (se houver mais de uma promoção para o mesmo produto, vale a de maior desconto).
+- Regras do manual aplicadas em código: PIX (5%) não acumula com preço promocional; parcela mínima por faixa de parcelamento.
+- Status do banco (`shipped`, `pending`...) traduzidos para português antes de chegar ao modelo.
 
-
-2. Crie e ative um ambiente virtual (venv):
-
-   python -m venv venv
-
-   # No Windows:
-
-   venv\Scripts\activate
-
-   # No Linux/macOS:
-
-   source venv/bin/activate
-
-
-
-3. Instale as dependências:
-
-   pip install -r requirements.txt
-
-
-
-4. Configure sua Chave da API:
-
-   Crie um arquivo chamado .env na raiz do projeto e adicione sua chave do Google Gemini:
-
-   GEMINI_API_KEY=sua_chave_aqui
-
-
-
-5. Execute a Assistente no Terminal:
-
-   python src/main.py
-
-
+### Persistência do histórico
+O histórico vive na sessão (objeto de chat do SDK), o suficiente para conversas multi-turno no CLI (por exemplo, o cliente informa o e-mail e depois pergunta pelo pedido). Não há persistência entre execuções.
 
 ---
 
+## 📌 Suposições assumidas
 
+- **Contatos divergentes no manual:** a capa e a seção 1.2 trazem (67) 3341-4444; a seção 7 traz (67) 3321-4500 para o WhatsApp. O e-mail aparece com e sem acento. Usei (67) 3341-4444 e `contato@emporiodamusica.com.br`.
+- **Identificação do cliente:** os dados não têm CPF; usei o e-mail como identificador.
+- **Promoções:** só existe o campo `is_active`, sem datas, então considero ativa toda promoção com `is_active = 1`.
+- **E-mail repetido:** `bruno.martins@jmail.com` aparece para dois clientes; a consulta mostra os pedidos dos dois cadastros.
+- **Fuso horário:** Campo Grande fixo em UTC-4.
 
-## 💡 Decisões Arquiteturais e Segurança
+---
 
-* Escopo Restrito: A diretriz de sistema (`System Instruction`) restringe estritamente o agente à comercialização de instrumentos musicais, bloqueando acessórios e redirecionando o cliente educadamente.
+## ⚠️ Limitações conhecidas
 
-* Injeção Dinâmica de Contexto: O agente analisa as palavras-chave da mensagem do usuário e busca nas bases locais (CSV/PDF) apenas o contexto relevante (produtos, promoções ativas, políticas de troca ou dados de pedidos), otimizando o uso de tokens e preservando a precisão das respostas.
+- **Cálculo de prazos feito pelo modelo:** a comparação de datas (ex.: "ainda estou dentro dos 7 dias?") depende do LLM. Seria mais confiável uma ferramenta que calcule em código.
+- **Feriados** não são considerados no horário de funcionamento.
+- **Sem persistência** de conversas entre execuções e sem autenticação real além do e-mail.
+- **Promoções sem data de validade** nos dados.
+- **Políticas no prompt** não escalam se o manual crescer muito; nesse caso seria necessário RAG com busca por trechos.
+- **Sem testes automatizados** das respostas do LLM; a validação foi manual com as conversas em `exemplos/`.
 
-* Privacidade e Segurança: Dados confidenciais como chaves de API são isolados via `.env` (ignorados pelo `.gitignore`), e consultas a pedidos exigem validação por e-mail ou nome do cliente.
+### Com mais tempo
+- Ferramenta `verificar_prazo_devolucao` (cálculo determinístico de prazos).
+- Testes automatizados para as ferramentas e avaliação das respostas do agente (golden set).
+- Persistência do histórico por cliente e interface web/WhatsApp.
+- Verificação de identidade mais forte (ex.: código enviado por e-mail).
+- Registro de reclamações e transferência para atendente humano.
+
+---
+
+## 🤖 Uso de assistentes de código
+
+[PREENCHER com o seu fluxo real, por exemplo:]
+Utilizei o **Claude (Anthropic)** como assistente durante o desenvolvimento: [descreva]. Por exemplo, a primeira versão do agente usava seleção de contexto por palavras-chave e apresentava respostas inconsistentes; com o auxílio do Claude diagnostiquei as causas (palavras-chave frágeis, política truncada, SDK descontinuado, falta de identificação clara do cliente) e migrei para function calling com o SDK `google-genai`. Revisei o código gerado, removi trechos não usados e testei as conversas manualmente. [Ajuste o texto conforme o que você de fato fez e mencione outras ferramentas, se usou.]
+
+---
+
+## 💬 Exemplos de interação
+
+Veja a pasta [`exemplos/`](exemplos/) com conversas cobrindo: [PREENCHER: consulta de preço, filtro por faixa de preço, pedido por e-mail, política de devolução, pedido fora de escopo].
