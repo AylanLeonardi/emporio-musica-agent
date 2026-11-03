@@ -82,6 +82,19 @@ def _parcelas_max(valor: float) -> int:
 ###################################################### ferramentas ######################################################
 def buscar_produtos(termo: str = "", categoria: str = "", preco_max: float = 0, preco_min: float = 0,
                     apenas_disponiveis: bool = True) -> dict:
+    """Busca instrumentos no catálogo da loja (preço, estoque e promoção vigente).
+ 
+    Use SEMPRE que o cliente perguntar sobre produtos, preços, disponibilidade, estoque ou ofertas.
+ 
+    Args:
+        termo: texto livre com marca/modelo/tipo, ex.: 'Takamine GD20', 'violão nylon', 'ukulele'. Vazio = sem filtro de texto.
+        categoria: opcional. Uma de: Guitarras, Baixos, Baterias e Percussão, Teclados e Pianos, Violões,
+            Instrumentos de Sopro (Madeiras), Instrumentos de Sopro (Metais), Cordas Orquestrais, Ukuleles.
+        preco_max: preço máximo em R$ considerando o preço final (com promoção). 0 = sem limite.
+        preco_min: preço mínimo em R$. 0 = sem limite.
+        apenas_disponiveis: se True (padrão) só retorna itens ativos com estoque; use False para
+            checar o status de um produto específico (esgotado, descontinuado, em breve).
+    """
     try:
         df = _catalogo()
         if termo:
@@ -128,6 +141,10 @@ def buscar_produtos(termo: str = "", categoria: str = "", preco_max: float = 0, 
 
 
 def listar_promocoes() -> dict:
+    """Lista os produtos que estão com promoção ATIVA agora (com preço original, desconto e preço final).
+ 
+    Use quando o cliente perguntar por promoções, descontos ou ofertas em geral.
+    """
     try:
         df = _catalogo()
         df = df[(df["discount_percent"] > 0) & (df["status"] == "active")].sort_values("discount_percent", ascending=False)
@@ -143,6 +160,14 @@ def listar_promocoes() -> dict:
 
 
 def consultar_pedidos(email: str, numero_pedido: int = 0) -> dict:
+    """Consulta pedidos de um cliente, identificado OBRIGATORIAMENTE pelo e-mail cadastrado.
+ 
+    Nunca consulte por nome. Se o cliente ainda não informou o e-mail, peça o e-mail antes de chamar.
+ 
+    Args:
+        email: e-mail cadastrado do cliente (obrigatório).
+        numero_pedido: opcional; filtra um pedido específico do cliente. 0 = todos os pedidos.
+    """
     try:
         email_n = str(email or "").strip().lower()
         if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email_n):
@@ -184,9 +209,24 @@ def consultar_pedidos(email: str, numero_pedido: int = 0) -> dict:
     except Exception as e:  # noqa: BLE001
         return {"erro": f"Falha ao consultar pedidos: {e}"}
 
+def data_hora_atual() -> dict:
+    """Retorna data/hora atual em Campo Grande/MS e se a loja está aberta agora.
+ 
+    Use para perguntas como 'estão abertos agora?', 'abre hoje?', ou para calcular prazos
+    (ex.: se ainda está dentro dos 7 dias de arrependimento).
+    """
+    agora = datetime.now(timezone(timedelta(hours=-4)))  # America/Campo_Grande (UTC-4)
+    dia = agora.weekday()  # 0=segunda
+    h = agora.hour + agora.minute / 60
+    aberto = (dia <= 4 and 9 <= h < 18) or (dia == 5 and 9 <= h < 13)
+    dias = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+    return {"data": agora.strftime("%d/%m/%Y"), "hora": agora.strftime("%H:%M"), "dia_semana": dias[dia],
+            "loja_aberta_agora": aberto,
+            "observacao": "Não considera feriados; em feriados a loja fica fechada."}
 
 @lru_cache(maxsize=1)
 def carregar_politicas() -> str:
+    """Texto integral do manual de políticas (PDF). Usado no system prompt, sem truncar."""
     try:
         pdfs = sorted(glob.glob(os.path.join(DATA_DIR, "*.pdf")))
         if not pdfs:
