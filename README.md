@@ -131,9 +131,12 @@ O histórico vive na sessão (objeto de chat do SDK), o suficiente para conversa
 
 ## 🤖 Uso de assistentes de código
 
-Usei o **Claude (Anthropic)**, em conversas de chat, como assistente de revisão e refatoração. A primeira versão do projeto escolhia o contexto por palavras-chave na mensagem e apresentava respostas inconsistentes. Com o Claude, diagnostiquei as causas (palavras-chave frágeis, política truncada em 2500 caracteres, `import` faltando, SDK `google-generativeai` descontinuado, ausência de regra clara de identificação do cliente) e migrei para function calling com o SDK `google-genai`, mantendo o manual de políticas completo no prompt.
+Usei dois assistentes de IA, em momentos diferentes do projeto:
 
-Meu fluxo foi: descrever o problema colando o código e a saída do terminal, receber uma proposta, **ler e adaptar o código** (removi trechos sem uso, como uma função auxiliar e um import, e ajustei nomes), e **testar manualmente** cada mudança no CLI com dados reais. Os testes revelaram problemas que levaram a novos ajustes no prompt, como o agente oferecer ações que não pode executar e supor uma data errada ao calcular o prazo de devolução. Também usei o assistente para estudar o código e a lógica aplicada, e para redigir mensagens de commit e partes deste README, que revisei e ajustei.
+- **Gemini (Google):** na primeira versão, para construir a **base estrutural** do projeto (organização em `agent.py`, `tools.py` e `main.py`, leitura dos CSVs e do PDF) e para **estudar os componentes** envolvidos (API do Gemini, pandas, PyPDF), além de pesquisar e formatar o código. Essa versão escolhia o contexto por palavras-chave na mensagem do cliente.
+- **Claude (Anthropic):** depois, em conversas de chat, para revisar o projeto. A primeira versão dava respostas inconsistentes. Com o Claude diagnostiquei as causas (palavras-chave frágeis, política truncada em 2500 caracteres, `import` faltando, SDK `google-generativeai` descontinuado, falta de regra clara de identificação do cliente) e migrei para function calling com o SDK `google-genai`, mantendo o manual de políticas completo no prompt.
+
+**Meu fluxo:** colava o código e a saída do terminal, recebia uma proposta, lia e adaptava o código (removi trechos sem uso, como uma função auxiliar e um import), e testava manualmente cada mudança no CLI com dados reais. Os testes revelaram problemas que levaram a novos ajustes no prompt, como o agente oferecer ações que não pode executar e supor uma data errada no cálculo do prazo de devolução. Também usei os assistentes para estudar a lógica aplicada (function calling, histórico do chat, diferença para RAG), de modo a conseguir explicar e evoluir o código sozinho.
 
 ---
 
